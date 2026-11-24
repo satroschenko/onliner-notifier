@@ -46,4 +46,18 @@ xcodebuild -quiet \
 mkdir -p dist/safari-build
 rm -rf 'dist/safari-build/Onliner Notifier.app'
 cp -R "dist/safari-derived-data/Build/Products/$configuration/Onliner Notifier.app" dist/safari-build/
+
+if [[ "${SAFARI_SIGNING:-0}" == "1" ]]; then
+  app_path='dist/safari-build/Onliner Notifier.app'
+  extension_path="$app_path/Contents/PlugIns/Onliner Notifier Extension.appex"
+  codesign --force --sign 'Developer ID Application' \
+    --options runtime --timestamp \
+    --entitlements scripts/safari/Extension.entitlements \
+    "$extension_path"
+  codesign --force --sign 'Developer ID Application' \
+    --options runtime --timestamp \
+    --entitlements scripts/safari/App.entitlements \
+    "$app_path"
+fi
+
 rm -rf dist/safari-derived-data

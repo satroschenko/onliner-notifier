@@ -74,6 +74,17 @@ jobs:
           EXTENSION_PATH="$APP_PATH/Contents/PlugIns/Onliner Notifier Extension.appex"
           ARCHIVE_PATH="$RUNNER_TEMP/notarization.zip"
 
+          for TARGET_PATH in "$EXTENSION_PATH" "$APP_PATH"; do
+            ENTITLEMENTS="$(codesign -d --entitlements :- "$TARGET_PATH")"
+            printf '%s\n' "$ENTITLEMENTS"
+            case "$ENTITLEMENTS" in
+              *com.apple.security.app-sandbox*) ;;
+              *) echo "App Sandbox entitlement is missing"; exit 1 ;;
+            esac
+            case "$ENTITLEMENTS" in
+              *com.apple.security.get-task-allow*) echo "Debug entitlement is present"; exit 1 ;;
+            esac
+          done
           ditto -c -k --keepParent "$APP_PATH" "$ARCHIVE_PATH"
           RESULT_PATH="$RUNNER_TEMP/notary-result.json"
           LOG_PATH="$RUNNER_TEMP/notary-log.json"
