@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 
 xcrun safari-web-extension-converter dist/safari \
   --app-name 'Onliner Notifier' \
-  --bundle-identifier 'by.onliner.Onliner-Notifier' \
+  --bundle-identifier 'io.github.satroschenko.onliner-notifier' \
   --swift \
   --macos-only \
   --project-location dist/safari-app \
@@ -13,6 +13,10 @@ xcrun safari-web-extension-converter dist/safari \
   --no-open \
   --no-prompt \
   --force
+
+python3 scripts/configure-safari-bundle-id.py \
+  'io.github.satroschenko.onliner-notifier' \
+  'dist/safari-app/Onliner Notifier/Onliner Notifier.xcodeproj'
 
 xcodebuild -quiet \
   -project 'dist/safari-app/Onliner Notifier/Onliner Notifier.xcodeproj' \
