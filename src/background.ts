@@ -170,6 +170,48 @@ async function runCheck(force: boolean): Promise<void> {
   return activeCheck;
 }
 
+async function requestOnlinerText(
+  url: string,
+  signal: AbortSignal,
+): Promise<{ ok: boolean; status: number; url: string; body: string }> {
+  if (buildTarget !== "safari") {
+    const response = await fetch(url, {
+      credentials: "include",
+      cache: "no-store",
+      redirect: "follow",
+      signal,
+      headers: { Accept: "text/html" },
+    });
+    return {
+      ok: response.ok,
+      status: response.status,
+      url: response.url,
+      body: await response.text(),
+    };
+  }
+
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("GET", url, true);
+    request.withCredentials = true;
+    request.timeout = 15_000;
+    request.setRequestHeader("Accept", "text/html");
+    request.onload = () => {
+      resolve({
+        ok: request.status >= 200 && request.status < 300,
+        status: request.status,
+        url: request.responseURL,
+        body: request.responseText,
+      });
+    };
+    request.onerror = () => reject(new TypeError("Ошибка сети"));
+    request.ontimeout = () => reject(new DOMException("Таймаут", "TimeoutError"));
+    request.onabort = () => reject(new DOMException("Запрос отменён", "AbortError"));
+    signal.addEventListener("abort", () => request.abort(), { once: true });
+    request.send();
+  });
+}
+
 async function performCheck(force: boolean): Promise<void> {
   const previous = await getState();
   if (!force && previous.nextRetryAt > Date.now()) return;
@@ -181,19 +223,15 @@ async function performCheck(force: boolean): Promise<void> {
   const timeout = setTimeout(() => controller.abort(), 15_000);
 
   try {
-    const response = await fetch(BOOKMARKS_URL, {
-      credentials: "include",
-      cache: "no-store",
-      redirect: "follow",
-      signal: controller.signal,
-      headers: { Accept: "text/html" },
-    });
+    const response = await requestOnlinerText(BOOKMARKS_URL, controller.signal);
     if (!response.ok) {
       throw new Error(`Onliner вернул HTTP ${response.status}`);
     }
 
-    const html = await response.text();
-    const parsed = await parseBookmarks(html, response.url || BOOKMARKS_URL);
+    const parsed = await parseBookmarks(
+      response.body,
+      response.url || BOOKMARKS_URL,
+    );
     const current = await getState();
     const shouldNotify = current.initialized;
     const changedTopics = parsed.topics.filter(
@@ -382,11 +420,7 @@ async function markAllTopicsRead(): Promise<void> {
 }
 
 async function requestMarkRead(url: string): Promise<void> {
-  const response = await fetch(url, {
-    credentials: "include",
-    cache: "no-store",
-    redirect: "follow",
-  });
+  const response = await requestOnlinerText(url, new AbortController().signal);
   if (!response.ok || new URL(response.url).pathname.includes("/login")) {
     throw new Error("Не удалось отметить тему прочитанной");
   }
