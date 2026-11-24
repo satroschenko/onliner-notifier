@@ -1,0 +1,12 @@
+name: Feature request
+description: Предложить улучшение
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Что хотите предложить?
+      placeholder: Опишите, какая возможность была бы полезна и почему.
+    validations:
+      required: true

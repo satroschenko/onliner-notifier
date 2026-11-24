@@ -1,0 +1,30 @@
+name: Bug report
+description: Сообщить о проблеме в расширении
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Что произошло?
+      placeholder: Опишите проблему и шаги, после которых она появляется.
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Браузер и его версия
+      placeholder: Например, Chrome 142
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Операционная система
+      placeholder: Например, Windows 11 или macOS 26
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Что ожидали увидеть?

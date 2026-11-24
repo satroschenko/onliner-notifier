@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Onliner Notifier</title>
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand">
+        <img src="/icons/icon_48.png" alt="" width="34" height="34" />
+        <div>
+          <h1>Onliner Notifier</h1>
+          <p id="status" class="status">Загрузка…</p>
+        </div>
+      </div>
+      <button id="settings" class="button button-secondary" type="button">Настройки</button>
+    </header>
+
+    <main>
+      <section id="error" class="message message-error" hidden></section>
+
+      <section id="unauthorized" class="message" hidden>
+        <strong>Нужна авторизация</strong>
+        <p>Войдите в Onliner в этом браузере. Пароль расширению не нужен.</p>
+        <button id="login" class="button button-primary" type="button">Войти в Onliner</button>
+      </section>
+
+      <div id="content">
+        <div class="summary">
+          <div>
+            <strong id="username">Onliner</strong>
+            <span id="last-check" class="muted"></span>
+          </div>
+          <button id="refresh" class="button button-secondary" type="button">Обновить</button>
+        </div>
+
+        <div class="actions">
+          <button id="open-all" class="button button-primary" type="button">Открыть все</button>
+          <button id="mark-all-read" class="button button-secondary" type="button">Все прочитаны</button>
+        </div>
+
+        <div id="topics" class="topics" aria-live="polite"></div>
+      </div>
+    </main>
+
+    <footer>
+      <button id="bookmarks" class="link-button" type="button">Открыть закладки на Onliner</button>
+    </footer>
+
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>
