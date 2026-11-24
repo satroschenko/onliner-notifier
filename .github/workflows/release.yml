@@ -100,7 +100,7 @@ jobs:
               report = json.load(open(sys.argv[1]))
           except Exception:
               raise SystemExit(0)
-          for issue in report.get("issues", []):
+          for issue in report.get("issues") or []:
               print(f"{issue.get('severity', 'issue')}: {issue.get('message', '')}")
               if issue.get("path"):
                   print(f"  Path: {issue['path']}")
