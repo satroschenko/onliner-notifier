@@ -119,8 +119,6 @@ jobs:
           mkdir -p release
           (cd dist/chrome && zip -qr "$GITHUB_WORKSPACE/release/onliner-notifier-chrome.zip" .)
           (cd dist/firefox && zip -qr "$GITHUB_WORKSPACE/release/onliner-notifier-firefox.xpi" .)
-          (cd dist/safari && zip -qr "$GITHUB_WORKSPACE/release/onliner-notifier-safari.zip" .)
-          (cd dist/safari-app && zip -qr "$GITHUB_WORKSPACE/release/onliner-notifier-safari-xcode.zip" .)
           ditto -c -k --keepParent "dist/safari-build/Onliner Notifier.app" "release/onliner-notifier-safari-macos.zip"
           (cd release && shasum -a 256 *.zip *.xpi > SHA256SUMS.txt)
       - name: Publish GitHub release
