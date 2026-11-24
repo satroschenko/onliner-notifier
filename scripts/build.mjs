@@ -68,7 +68,7 @@ function createManifest(target) {
     manifest_version: 3,
     name: "Onliner Notifier",
     short_name: "Onliner",
-    version: "1.0.8",
+    version: "1.0.9",
     description: "Уведомления о новых сообщениях в закладках форума Onliner.",
     permissions: ["alarms", "notifications", "storage", "tabs"],
     host_permissions: [

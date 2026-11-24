@@ -7,7 +7,12 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
 
     func beginRequest(with context: NSExtensionContext) {
         let request = context.inputItems.first as? NSExtensionItem
-        let message = request?.userInfo?[SFExtensionMessageKey]
+        let message: Any?
+        if #available(macOS 11.0, *) {
+            message = request?.userInfo?[SFExtensionMessageKey]
+        } else {
+            message = request?.userInfo?["message"]
+        }
         var responsePayload: Any = ["echo": message as Any]
 
         if let dictionary = message as? [String: Any], dictionary["type"] as? String == "play-sound" {
@@ -20,7 +25,11 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         }
 
         let response = NSExtensionItem()
-        response.userInfo = [SFExtensionMessageKey: responsePayload]
+        if #available(macOS 11.0, *) {
+            response.userInfo = [SFExtensionMessageKey: responsePayload]
+        } else {
+            response.userInfo = ["message": responsePayload]
+        }
         context.completeRequest(returningItems: [response], completionHandler: nil)
     }
 
