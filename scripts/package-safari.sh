@@ -18,6 +18,9 @@ python3 scripts/configure-safari-bundle-id.py \
   'io.github.satroschenko.onliner-notifier' \
   'dist/safari-app/Onliner Notifier/Onliner Notifier.xcodeproj'
 
+cp scripts/safari/SafariWebExtensionHandler.swift \
+  'dist/safari-app/Onliner Notifier/Onliner Notifier Extension/SafariWebExtensionHandler.swift'
+
 configuration=Debug
 signing_settings=(CODE_SIGNING_ALLOWED=NO)
 if [[ "${SAFARI_SIGNING:-0}" == "1" ]]; then

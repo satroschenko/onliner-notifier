@@ -190,26 +190,46 @@ async function requestOnlinerText(
     };
   }
 
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open("GET", url, true);
-    request.withCredentials = true;
-    request.timeout = 15_000;
-    request.setRequestHeader("Accept", "text/html");
-    request.onload = () => {
-      resolve({
-        ok: request.status >= 200 && request.status < 300,
-        status: request.status,
-        url: request.responseURL,
-        body: request.responseText,
-      });
+  return readOnlinerInTab(url, signal);
+}
+
+async function readOnlinerInTab(
+  url: string,
+  signal: AbortSignal,
+): Promise<{ ok: boolean; status: number; url: string; body: string }> {
+  const tab = await browser.tabs.create({ url, active: false });
+  if (tab.id === undefined) throw new Error("Safari не открыл страницу Onliner");
+
+  try {
+    await waitForTabLoad(tab.id, signal);
+    const result = await browser.tabs.executeScript(tab.id, {
+      file: "src/ui/page-reader.js",
+    });
+    const page = result[0] as { html: string; url: string } | undefined;
+    if (!page?.html) throw new Error("Safari не прочитал страницу Onliner");
+
+    return {
+      ok: true,
+      status: 200,
+      url: page.url,
+      body: page.html,
     };
-    request.onerror = () => reject(new TypeError("Ошибка сети"));
-    request.ontimeout = () => reject(new DOMException("Таймаут", "TimeoutError"));
-    request.onabort = () => reject(new DOMException("Запрос отменён", "AbortError"));
-    signal.addEventListener("abort", () => request.abort(), { once: true });
-    request.send();
-  });
+  } finally {
+    await browser.tabs.remove(tab.id).catch(() => undefined);
+  }
+}
+
+async function waitForTabLoad(tabId: number, signal: AbortSignal): Promise<void> {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    if (signal.aborted) throw new DOMException("Запрос отменён", "AbortError");
+    const tab = await browser.tabs.get(tabId);
+    if (tab.status === "complete") {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new DOMException("Таймаут загрузки Onliner", "TimeoutError");
 }
 
 async function performCheck(force: boolean): Promise<void> {
