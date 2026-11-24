@@ -78,10 +78,10 @@ async function sendTestNotification(): Promise<void> {
     await requestNotificationPermission();
     const response = (await browser.runtime.sendMessage({
       type: "test-notification",
-    })) as RuntimeResponse;
-    saveStatus.textContent = response.ok
+    })) as RuntimeResponse | undefined;
+    saveStatus.textContent = response?.ok
       ? "Тестовое уведомление отправлено"
-      : response.error;
+      : response?.error ?? "Фоновый процесс расширения не ответил";
   } catch (error) {
     saveStatus.textContent = error instanceof Error ? error.message : String(error);
   } finally {
@@ -95,8 +95,10 @@ async function sendTestSound(): Promise<void> {
   try {
     const response = (await browser.runtime.sendMessage({
       type: "test-sound",
-    })) as RuntimeResponse;
-    saveStatus.textContent = response.ok ? "Звук воспроизводится" : response.error;
+    })) as RuntimeResponse | undefined;
+    saveStatus.textContent = response?.ok
+      ? "Звук воспроизводится"
+      : response?.error ?? "Фоновый процесс расширения не ответил";
   } catch (error) {
     saveStatus.textContent = error instanceof Error ? error.message : String(error);
   } finally {

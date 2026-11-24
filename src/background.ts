@@ -27,6 +27,47 @@ import type {
 const MAX_REMEMBERED_TOPICS = 1000;
 let activeCheck: Promise<void> | null = null;
 
+const nativeRuntime = (
+  globalThis as unknown as {
+    chrome?: {
+      runtime?: {
+        onMessage: {
+          addListener(
+            listener: (
+              message: unknown,
+              sender: unknown,
+              sendResponse: (response: RuntimeResponse) => void,
+            ) => boolean,
+          ): void;
+        };
+      };
+    };
+  }
+).chrome?.runtime;
+
+if (nativeRuntime) {
+  nativeRuntime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!isRuntimeRequest(message)) return false;
+    handleRequest(message)
+      .then(sendResponse)
+      .catch((error: unknown) => {
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    return true;
+  });
+} else {
+  browser.runtime.onMessage.addListener((message: unknown) => {
+    if (!isRuntimeRequest(message)) return undefined;
+    return handleRequest(message).catch((error: unknown) => ({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    }));
+  });
+}
+
 browser.runtime.onInstalled.addListener(() => {
   void initialize();
 });
@@ -35,11 +76,11 @@ browser.runtime.onStartup.addListener(() => {
   void initialize();
 });
 
-browser.alarms.onAlarm.addListener((alarm) => {
+browser.alarms?.onAlarm?.addListener((alarm) => {
   if (alarm.name === ALARM_NAME) void runCheck(false);
 });
 
-browser.commands.onCommand.addListener((command) => {
+browser.commands?.onCommand?.addListener((command) => {
   if (command === "open-all") void openAllTopics();
 });
 
@@ -51,14 +92,6 @@ browser.notifications?.onClicked?.addListener((notificationId) => {
 
 browser.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "local" && changes[SETTINGS_KEY]) void ensureAlarm();
-});
-
-browser.runtime.onMessage.addListener((message: unknown) => {
-  if (!isRuntimeRequest(message)) return undefined;
-  return handleRequest(message).catch((error: unknown) => ({
-    ok: false,
-    error: error instanceof Error ? error.message : String(error),
-  }));
 });
 
 void ensureAlarm();

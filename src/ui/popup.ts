@@ -60,7 +60,11 @@ void loadSnapshot();
 
 async function loadSnapshot(): Promise<void> {
   const response = await send({ type: "get-snapshot" });
-  if (response.ok && response.snapshot) render(response.snapshot);
+  if (response.ok && response.snapshot) {
+    render(response.snapshot);
+  } else if (!response.ok) {
+    showError(response.error);
+  }
 }
 
 async function execute(request: RuntimeRequest): Promise<void> {
@@ -87,7 +91,16 @@ async function execute(request: RuntimeRequest): Promise<void> {
 }
 
 async function send(request: RuntimeRequest): Promise<RuntimeResponse> {
-  return (await browser.runtime.sendMessage(request)) as RuntimeResponse;
+  const response = (await browser.runtime.sendMessage(request)) as
+    | RuntimeResponse
+    | undefined;
+  if (!response || typeof response.ok !== "boolean") {
+    return {
+      ok: false,
+      error: "Фоновый процесс расширения не ответил. Перезапустите Safari и попробуйте снова.",
+    };
+  }
+  return response;
 }
 
 function render(nextSnapshot: Snapshot): void {
