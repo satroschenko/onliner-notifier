@@ -6,10 +6,10 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const requestedTarget = process.argv[2] ?? "all";
 const targets = requestedTarget === "all"
-  ? ["chrome", "firefox", "safari"]
+  ? ["chrome", "firefox"]
   : [requestedTarget];
 
-if (!targets.every((target) => ["chrome", "firefox", "safari"].includes(target))) {
+if (!targets.every((target) => ["chrome", "firefox"].includes(target))) {
   throw new Error(`Неизвестная цель сборки: ${requestedTarget}`);
 }
 
@@ -68,7 +68,7 @@ function createManifest(target) {
     manifest_version: 3,
     name: "Onliner Notifier",
     short_name: "Onliner",
-    version: "1.0.10",
+    version: "1.1.0",
     description: "Уведомления о новых сообщениях в закладках форума Onliner.",
     permissions: ["alarms", "notifications", "storage", "tabs"],
     host_permissions: [
@@ -127,17 +127,6 @@ function createManifest(target) {
         strict_min_version: "109.0",
       },
     };
-  }
-
-  if (target === "safari") {
-    manifest.permissions.push("nativeMessaging", "scripting");
-    manifest.background = {
-      page: "background.html",
-    };
-    manifest.permissions = manifest.permissions.filter(
-      (permission) => permission !== "notifications",
-    );
-    delete manifest.options_ui.open_in_tab;
   }
 
   return manifest;

@@ -1,4 +1,4 @@
-export type BuildTarget = "chrome" | "firefox" | "safari";
+export type BuildTarget = "chrome" | "firefox";
 
 export interface Settings {
   intervalMinutes: number;

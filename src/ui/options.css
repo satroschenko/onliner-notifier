@@ -113,12 +113,6 @@ button:hover:not(:disabled) {
   font-size: 13px;
 }
 
-.hint {
-  margin-top: 4px;
-  color: #71808f;
-  font-size: 12px;
-}
-
 .auth-note {
   margin-top: 24px;
   padding-top: 22px;

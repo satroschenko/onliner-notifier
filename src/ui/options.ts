@@ -1,5 +1,4 @@
 import browser from "webextension-polyfill";
-import { buildTarget } from "../lib/browser-target";
 import { getSettings, saveSettings } from "../lib/storage";
 import type { RuntimeResponse, Settings } from "../lib/types";
 import "./options.css";
@@ -31,10 +30,6 @@ testSound.addEventListener("click", () => {
   void sendTestSound();
 });
 
-notifications.addEventListener("change", () => {
-  if (notifications.checked) void requestNotificationPermission();
-});
-
 async function loadSettings(): Promise<void> {
   const settings = await getSettings();
   interval.value = String(settings.intervalMinutes);
@@ -62,20 +57,9 @@ async function submitSettings(): Promise<void> {
   }, 2500);
 }
 
-async function requestNotificationPermission(): Promise<void> {
-  if (buildTarget !== "safari" || typeof Notification === "undefined") return;
-  if (Notification.permission !== "default") return;
-
-  const permission = await Notification.requestPermission();
-  saveStatus.textContent = permission === "granted"
-    ? "Уведомления разрешены"
-    : "Уведомления запрещены в настройках Safari";
-}
-
 async function sendTestNotification(): Promise<void> {
   testNotification.disabled = true;
   try {
-    await requestNotificationPermission();
     const response = (await browser.runtime.sendMessage({
       type: "test-notification",
     })) as RuntimeResponse | undefined;

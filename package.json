@@ -1,14 +1,12 @@
 {
   "name": "onliner-notifier",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs all",
     "build:chrome": "node scripts/build.mjs chrome",
     "build:firefox": "node scripts/build.mjs firefox",
-    "build:safari": "node scripts/build.mjs safari",
-    "package:safari": "bash scripts/package-safari.sh",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run build"
   },

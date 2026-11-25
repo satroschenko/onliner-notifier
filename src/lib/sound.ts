@@ -1,18 +1,10 @@
 import browser from "webextension-polyfill";
-import { buildTarget } from "./browser-target";
 import { ensureOffscreenDocument, getOffscreenApi } from "./offscreen";
 import type { OffscreenSoundRequest } from "./types";
 
 let activeAudio: HTMLAudioElement | null = null;
 
 export async function playNotificationSound(): Promise<void> {
-  if (buildTarget === "safari") {
-    await browser.runtime.sendNativeMessage("onliner-notifier", {
-      type: "play-sound",
-    });
-    return;
-  }
-
   if (typeof Audio !== "undefined") {
     if (activeAudio) activeAudio.pause();
 

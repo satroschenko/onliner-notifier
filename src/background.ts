@@ -6,7 +6,6 @@ import {
   SETTINGS_KEY,
   unreadTopicUrl,
 } from "./lib/constants";
-import { buildTarget } from "./lib/browser-target";
 import { parseBookmarks } from "./lib/html-parser";
 import { UnauthorizedError } from "./lib/parser";
 import { playNotificationSound } from "./lib/sound";
@@ -170,69 +169,6 @@ async function runCheck(force: boolean): Promise<void> {
   return activeCheck;
 }
 
-async function requestOnlinerText(
-  url: string,
-  signal: AbortSignal,
-): Promise<{ ok: boolean; status: number; url: string; body: string }> {
-  if (buildTarget !== "safari") {
-    const response = await fetch(url, {
-      credentials: "include",
-      cache: "no-store",
-      redirect: "follow",
-      signal,
-      headers: { Accept: "text/html" },
-    });
-    return {
-      ok: response.ok,
-      status: response.status,
-      url: response.url,
-      body: await response.text(),
-    };
-  }
-
-  return readOnlinerInTab(url, signal);
-}
-
-async function readOnlinerInTab(
-  url: string,
-  signal: AbortSignal,
-): Promise<{ ok: boolean; status: number; url: string; body: string }> {
-  const tab = await browser.tabs.create({ url, active: false });
-  if (tab.id === undefined) throw new Error("Safari не открыл страницу Onliner");
-
-  try {
-    await waitForTabLoad(tab.id, signal);
-    const result = await browser.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ["src/ui/page-reader.js"],
-    });
-    const page = result[0]?.result as { html: string; url: string } | undefined;
-    if (!page?.html) throw new Error("Safari не прочитал страницу Onliner");
-
-    return {
-      ok: true,
-      status: 200,
-      url: page.url,
-      body: page.html,
-    };
-  } finally {
-    await browser.tabs.remove(tab.id).catch(() => undefined);
-  }
-}
-
-async function waitForTabLoad(tabId: number, signal: AbortSignal): Promise<void> {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    if (signal.aborted) throw new DOMException("Запрос отменён", "AbortError");
-    const tab = await browser.tabs.get(tabId);
-    if (tab.status === "complete") {
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new DOMException("Таймаут загрузки Onliner", "TimeoutError");
-}
-
 async function performCheck(force: boolean): Promise<void> {
   const previous = await getState();
   if (!force && previous.nextRetryAt > Date.now()) return;
@@ -244,15 +180,19 @@ async function performCheck(force: boolean): Promise<void> {
   const timeout = setTimeout(() => controller.abort(), 15_000);
 
   try {
-    const response = await requestOnlinerText(BOOKMARKS_URL, controller.signal);
+    const response = await fetch(BOOKMARKS_URL, {
+      credentials: "include",
+      cache: "no-store",
+      redirect: "follow",
+      signal: controller.signal,
+      headers: { Accept: "text/html" },
+    });
     if (!response.ok) {
       throw new Error(`Onliner вернул HTTP ${response.status}`);
     }
 
-    const parsed = await parseBookmarks(
-      response.body,
-      response.url || BOOKMARKS_URL,
-    );
+    const html = await response.text();
+    const parsed = await parseBookmarks(html, response.url || BOOKMARKS_URL);
     const current = await getState();
     const shouldNotify = current.initialized;
     const changedTopics = parsed.topics.filter(
@@ -358,36 +298,12 @@ async function createNotification(
   title: string,
   message: string,
 ): Promise<void> {
-  const iconUrl = browser.runtime.getURL("icons/icon_80.png");
-  if (browser.notifications?.create) {
-    await browser.notifications.create(id, {
-      type: "basic",
-      iconUrl,
-      title,
-      message,
-    });
-    return;
-  }
-
-  if (buildTarget === "safari" && typeof Notification !== "undefined") {
-    if (Notification.permission !== "granted") {
-      throw new Error("Разрешите уведомления на странице настроек расширения");
-    }
-
-    const notification = new Notification(title, {
-      body: message,
-      icon: iconUrl,
-      tag: id,
-    });
-    const match = /^topic-(\d+)$/.exec(id);
-    notification.onclick = () => {
-      if (match) void openTopic(match[1]);
-      notification.close();
-    };
-    return;
-  }
-
-  throw new Error("Уведомления не поддерживаются этим браузером");
+  await browser.notifications.create(id, {
+    type: "basic",
+    iconUrl: browser.runtime.getURL("icons/icon_80.png"),
+    title,
+    message,
+  });
 }
 
 async function openTopic(topicId: string): Promise<void> {
@@ -441,7 +357,11 @@ async function markAllTopicsRead(): Promise<void> {
 }
 
 async function requestMarkRead(url: string): Promise<void> {
-  const response = await requestOnlinerText(url, new AbortController().signal);
+  const response = await fetch(url, {
+    credentials: "include",
+    cache: "no-store",
+    redirect: "follow",
+  });
   if (!response.ok || new URL(response.url).pathname.includes("/login")) {
     throw new Error("Не удалось отметить тему прочитанной");
   }

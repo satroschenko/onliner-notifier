@@ -3,14 +3,13 @@ name: Release
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   release:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,121 +18,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - name: Prepare signing keychain
-        env:
-          DEVELOPER_ID_CERTIFICATE_P12: ${{ secrets.DEVELOPER_ID_CERTIFICATE_P12 }}
-          DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
-          NOTARY_API_PRIVATE_KEY: ${{ secrets.NOTARY_API_PRIVATE_KEY }}
-        run: |
-          : "${DEVELOPER_ID_CERTIFICATE_P12:?Missing Developer ID certificate}"
-          : "${DEVELOPER_ID_CERTIFICATE_PASSWORD:?Missing certificate password}"
-          : "${NOTARY_API_PRIVATE_KEY:?Missing notary API private key}"
-
-          CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
-          NOTARY_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
-          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
-          KEYCHAIN_PASSWORD="$(openssl rand -hex 32)"
-
-          echo "$DEVELOPER_ID_CERTIFICATE_P12" | base64 --decode > "$CERTIFICATE_PATH"
-          printf '%s' "$NOTARY_API_PRIVATE_KEY" > "$NOTARY_KEY_PATH"
-          chmod 600 "$CERTIFICATE_PATH" "$NOTARY_KEY_PATH"
-
-          {
-            echo "KEYCHAIN_PATH=$KEYCHAIN_PATH"
-            echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD"
-            echo "NOTARY_KEY_PATH=$NOTARY_KEY_PATH"
-          } >> "$GITHUB_ENV"
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERTIFICATE_PATH" \
-            -k "$KEYCHAIN_PATH" \
-            -P "$DEVELOPER_ID_CERTIFICATE_PASSWORD" \
-            -A
-          security set-key-partition-list -S apple-tool:,apple: -s \
-            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH"
-          security default-keychain -d user -s "$KEYCHAIN_PATH"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-          rm -f "$CERTIFICATE_PATH"
-      - name: Build signed Safari application
-        env:
-          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
-          SAFARI_SIGNING: "1"
-        run: bash scripts/package-safari.sh
-      - name: Notarize Safari application
-        env:
-          NOTARY_API_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
-          NOTARY_API_ISSUER_ID: ${{ secrets.NOTARY_API_ISSUER_ID }}
-        run: |
-          : "${NOTARY_API_KEY_ID:?Missing notary API key ID}"
-          : "${NOTARY_API_ISSUER_ID:?Missing notary API issuer ID}"
-
-          APP_PATH="dist/safari-build/Onliner Notifier.app"
-          EXTENSION_PATH="$APP_PATH/Contents/PlugIns/Onliner Notifier Extension.appex"
-          ARCHIVE_PATH="$RUNNER_TEMP/notarization.zip"
-
-          for TARGET_PATH in "$EXTENSION_PATH" "$APP_PATH"; do
-            ENTITLEMENTS="$(codesign -d --entitlements :- "$TARGET_PATH")"
-            printf '%s\n' "$ENTITLEMENTS"
-            case "$ENTITLEMENTS" in
-              *com.apple.security.app-sandbox*) ;;
-              *) echo "App Sandbox entitlement is missing"; exit 1 ;;
-            esac
-            case "$ENTITLEMENTS" in
-              *com.apple.security.get-task-allow*) echo "Debug entitlement is present"; exit 1 ;;
-            esac
-          done
-          ditto -c -k --keepParent "$APP_PATH" "$ARCHIVE_PATH"
-          RESULT_PATH="$RUNNER_TEMP/notary-result.json"
-          LOG_PATH="$RUNNER_TEMP/notary-log.json"
-          xcrun notarytool submit "$ARCHIVE_PATH" \
-            --key "$NOTARY_KEY_PATH" \
-            --key-id "$NOTARY_API_KEY_ID" \
-            --issuer "$NOTARY_API_ISSUER_ID" \
-            --wait \
-            --timeout 1h \
-            --output-format json > "$RESULT_PATH"
-
-          SUBMISSION_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["id"])' "$RESULT_PATH")"
-          STATUS="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$RESULT_PATH")"
-          xcrun notarytool log "$SUBMISSION_ID" \
-            --key "$NOTARY_KEY_PATH" \
-            --key-id "$NOTARY_API_KEY_ID" \
-            --issuer "$NOTARY_API_ISSUER_ID" > "$LOG_PATH" || true
-
-          python3 - "$LOG_PATH" <<'PY'
-          import json
-          import sys
-
-          try:
-              report = json.load(open(sys.argv[1]))
-          except Exception:
-              raise SystemExit(0)
-          for issue in report.get("issues") or []:
-              print(f"{issue.get('severity', 'issue')}: {issue.get('message', '')}")
-              if issue.get("path"):
-                  print(f"  Path: {issue['path']}")
-              if issue.get("architecture"):
-                  print(f"  Architecture: {issue['architecture']}")
-          PY
-
-          test "$STATUS" = "Accepted"
-          xcrun stapler staple "$APP_PATH"
-          xcrun stapler validate "$APP_PATH"
-          codesign --verify --strict --verbose=2 "$EXTENSION_PATH"
-          codesign --verify --strict --verbose=2 "$APP_PATH"
-          spctl --assess --type execute --verbose=4 "$APP_PATH"
       - name: Package browser extensions
         run: |
           mkdir -p release
           (cd dist/chrome && zip -qr "$GITHUB_WORKSPACE/release/onliner-notifier-chrome.zip" .)
           (cd dist/firefox && zip -qr "$GITHUB_WORKSPACE/release/onliner-notifier-firefox.xpi" .)
-          ditto -c -k --keepParent "dist/safari-build/Onliner Notifier.app" "release/onliner-notifier-safari-macos.zip"
           (cd release && shasum -a 256 *.zip *.xpi > SHA256SUMS.txt)
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -141,11 +32,3 @@ jobs:
             release/*.zip release/*.xpi release/SHA256SUMS.txt \
             --title "Onliner Notifier ${GITHUB_REF_NAME#v}" \
             --generate-notes
-      - name: Remove signing credentials
-        if: always()
-        run: |
-          if [ -n "${KEYCHAIN_PATH:-}" ]; then
-            security default-keychain -d user -s login.keychain-db || true
-            security delete-keychain "$KEYCHAIN_PATH" || true
-          fi
-          rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/notarization.zip"

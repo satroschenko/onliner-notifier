@@ -97,7 +97,7 @@ async function send(request: RuntimeRequest): Promise<RuntimeResponse> {
   if (!response || typeof response.ok !== "boolean") {
     return {
       ok: false,
-      error: "Фоновый процесс расширения не ответил. Перезапустите Safari и попробуйте снова.",
+      error: "Фоновый процесс расширения не ответил. Перезапустите браузер и попробуйте снова.",
     };
   }
   return response;

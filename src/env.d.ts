@@ -1,1 +1,1 @@
-declare const __TARGET__: "chrome" | "firefox" | "safari";
+declare const __TARGET__: "chrome" | "firefox";
