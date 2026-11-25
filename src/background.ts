@@ -202,10 +202,11 @@ async function readOnlinerInTab(
 
   try {
     await waitForTabLoad(tab.id, signal);
-    const result = await browser.tabs.executeScript(tab.id, {
-      file: "src/ui/page-reader.js",
+    const result = await browser.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ["src/ui/page-reader.js"],
     });
-    const page = result[0] as { html: string; url: string } | undefined;
+    const page = result[0]?.result as { html: string; url: string } | undefined;
     if (!page?.html) throw new Error("Safari не прочитал страницу Onliner");
 
     return {

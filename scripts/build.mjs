@@ -68,7 +68,7 @@ function createManifest(target) {
     manifest_version: 3,
     name: "Onliner Notifier",
     short_name: "Onliner",
-    version: "1.0.9",
+    version: "1.0.10",
     description: "Уведомления о новых сообщениях в закладках форума Onliner.",
     permissions: ["alarms", "notifications", "storage", "tabs"],
     host_permissions: [
@@ -130,7 +130,7 @@ function createManifest(target) {
   }
 
   if (target === "safari") {
-    manifest.permissions.push("nativeMessaging");
+    manifest.permissions.push("nativeMessaging", "scripting");
     manifest.background = {
       page: "background.html",
     };
